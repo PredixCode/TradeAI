@@ -1,0 +1,4 @@
+market/data/csv/*
+
+market/util/__pycache__
+market/util/fetch_cache.pkl
