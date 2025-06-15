@@ -1,8 +1,12 @@
 import numpy as np
+import pandas as pd
+
 from market.Stock import Stock
 from market.util.FetchQueue import FetchQueue
 from trade.Trader import Trader
 from ai.TradeAI import TradeAI
+
+
 
 def get_state(data: pd.DataFrame, current_step: int, window_size: int):
     """
@@ -72,15 +76,13 @@ if __name__ == "__main__":
     
     # --- 2. Data Preparation ---
     print("Fetching all high-frequency historical data for training...")
-    # CRITICAL CHANGE: We now use the raw, merged, irregular data.
-    # The AI will learn to handle it because our state is time-aware.
-    data = stock.get_all_historical_data(queue=queue)
+    data = stock.get_all_historical_data_accurate(queue=queue)
     
     if data.empty:
         raise SystemExit("Cannot run training, no data was fetched.")
     
     # --- 3. AI and Environment Initialization ---
-    price_window_size = 30  # The AI will look at the last 30 data points (e.g., 30 minutes)
+    price_window_size = 60  # The AI will look at the last 30 data points (e.g., 30 minutes)
     num_time_features = 6   # We created 6 time features (sin/cos for hour, day_week, day_month)
     
     # The state size is now the sum of the price window and our time features
