@@ -3,7 +3,7 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime
 
-from util.FetchQueue import FetchQueue
+from market.util.FetchQueue import FetchQueue
 
 
 

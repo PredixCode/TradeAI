@@ -59,7 +59,7 @@ class FetchQueue:
 
         print(f"CACHE MISS: Fetching new data for {ticker_symbol} with params {params}...")
         
-        delay = random.uniform(0.5, 1.5)
+        delay = random.uniform(0.6, 1.4)
         print(f"   -> Throttling: Waiting for {delay:.2f} seconds...")
         time.sleep(delay)
 
