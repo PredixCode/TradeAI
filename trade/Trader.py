@@ -60,9 +60,9 @@ class Trader:
             "portfolio_value": self.portfolio_value
         }
         self.trade_history.append(log_entry)
-        print(f"Step {self.current_step}: BOUGHT {shares_bought:.4f} shares @ €{price:,.2f} "
-                f"| New Balance: €{self.current_balance:,.2f}"
-                f"| Total Fees Paid: €{self.total_fees_paid:,.2f}")
+        #print(f"Step {self.current_step}: BOUGHT {shares_bought:.4f} shares @ €{price:,.2f} "
+                #f"| New Balance: €{self.current_balance:,.2f}"
+                #f"| Total Fees Paid: €{self.total_fees_paid:,.2f}")
 
     def sell(self, amount_in_shares: float):
         """
@@ -90,8 +90,8 @@ class Trader:
             "portfolio_value": self.portfolio_value
         }
         self.trade_history.append(log_entry)
-        print(f"Step {self.current_step}: SOLD {amount_in_shares:.4f} shares @ €{price:,.2f} "
-                f"| New Balance: €{self.current_balance:,.2f}")
+        #print(f"Step {self.current_step}: SOLD {amount_in_shares:.4f} shares @ €{price:,.2f} "
+                #f"| New Balance: €{self.current_balance:,.2f}")
 
     def hold(self):
         """

@@ -91,8 +91,8 @@ if __name__ == "__main__":
     num_episodes = 10
 
     # --- 4. The Training Loop ---
-    for e in range(num_episodes):
-        try:
+    try:
+        for e in range(num_episodes):
             print(f"\n--- Starting Episode: {e+1}/{num_episodes} ---")
             trader = Trader(historical_data=data, initial_balance=10000.0)
             
@@ -114,13 +114,15 @@ if __name__ == "__main__":
 
                 if done:
                     break
-        except KeyboardInterrupt:
-            break
-        
+
         print(f"--- Episode {e+1} Summary ---")
         trader.print_summary()
+        
+    except KeyboardInterrupt:
+        print("\n\n[!] Training interrupted by user.")
+        trader.print_summary()
 
-    # --- 5. INTERACTIVE SAVE PROMPT ---
+    # --- 5. SAVE PROMPT ---
     while True:
         save_choice = input("\nDo you want to save the trained model? (y/n): ").lower()
         if save_choice in ['y', 'n']:

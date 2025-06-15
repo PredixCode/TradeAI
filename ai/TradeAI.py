@@ -2,9 +2,13 @@ import numpy as np
 import random
 import os
 from collections import deque
+
+import tensorflow as tf
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Dense, Input
 from tensorflow.keras.optimizers import Adam
+
+
 
 class TradeAI:
     """
@@ -20,6 +24,8 @@ class TradeAI:
         self.epsilon_decay = 0.995
         self.learning_rate = 0.001
         self.model = self._build_model()
+
+        self.replay = tf.function(self.replay)
         print("TradeAI (DQN Agent) initialized.")
 
     def _build_model(self) -> Sequential:
@@ -67,41 +73,23 @@ class TradeAI:
         return np.argmax(act_values[0])
 
     def replay(self, batch_size: int):
-        """
-        Trains the neural network using a random batch of experiences.
-        """
         if len(self.memory) < batch_size:
-            return # Not enough memories to train yet
+            return
 
-        # 1. Sample a minibatch from memory
         minibatch = random.sample(self.memory, batch_size)
-
-        # 2. Extract states, actions, rewards, etc., into separate NumPy arrays
-        # This is much more efficient for batch processing.
         states = np.array([experience[0] for experience in minibatch]).reshape(batch_size, self.state_size)
         actions = np.array([experience[1] for experience in minibatch])
         rewards = np.array([experience[2] for experience in minibatch])
         next_states = np.array([experience[3] for experience in minibatch]).reshape(batch_size, self.state_size)
         dones = np.array([experience[4] for experience in minibatch])
 
-        # 3. Predict Q-values for the current states and next states IN A SINGLE BATCH
-        # This replaces 2 * batch_size individual predict calls with just 2 calls.
-        q_values_current = self.model.predict(states, verbose=0)
-        q_values_next = self.model.predict(next_states, verbose=0)
+        q_values_current = self.model(states, training=False)
+        q_values_next = self.model(next_states, training=False)
 
-        # 4. Calculate the target Q-values for the entire batch
-        # Start with the current Q-values as a base
-        targets = q_values_current.copy()
-        
-        # The target for each experience is its immediate reward
-        # For experiences that are not 'done', add the discounted maximum future Q-value
-        # This is the core of the Bellman equation in Q-learning
+        targets = q_values_current.numpy() # Convert to numpy to modify
         targets[np.arange(batch_size), actions] = rewards + self.gamma * np.amax(q_values_next, axis=1) * (1 - dones)
 
-        # 5. Train the model on the entire batch in a single call
-        # This replaces batch_size individual fit calls with just ONE call.
-        self.model.fit(states, targets, epochs=1, verbose=0)
+        self.model.train_on_batch(states, targets)
         
-        # 6. Decay the exploration rate (epsilon)
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
