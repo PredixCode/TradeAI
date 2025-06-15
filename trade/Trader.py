@@ -53,8 +53,8 @@ class Trader:
         total_cost = amount_in_currency + self.transaction_fee
 
         if total_cost > self.current_balance:
-            print(f"Step {self.current_step}: BUY FAILED - Insufficient funds. "
-                    f"Need €{total_cost:,.2f}, have €{self.current_balance:,.2f}")
+            #print(f"Step {self.current_step}: BUY FAILED - Insufficient funds. "
+                    #f"Need €{total_cost:,.2f}, have €{self.current_balance:,.2f}")
             return False
 
         self.current_balance -= total_cost
@@ -81,8 +81,8 @@ class Trader:
         Executes a sell order with a specific number of shares.
         """
         if amount_in_shares > self.shares_held:
-            print(f"Step {self.current_step}: SELL FAILED - Not enough shares. "
-                    f"Trying to sell {amount_in_shares:.4f}, have {self.shares_held:.4f}")
+            #print(f"Step {self.current_step}: SELL FAILED - Not enough shares. "
+                    #f"Trying to sell {amount_in_shares:.4f}, have {self.shares_held:.4f}")
             return False
 
         price = self._get_current_price()
@@ -90,6 +90,8 @@ class Trader:
 
         if revenue < self.transaction_fee:
             # This sale would lose money, so it's an invalid action.
+            #print(f"Step {self.current_step}: SELL FAILED - Sell is not profitable. "
+                #f"Would create {revenue - self.transaction_fee:.4f} in losses")
             return False
 
         net_revenue = revenue - self.transaction_fee
