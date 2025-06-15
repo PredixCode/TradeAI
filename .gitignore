@@ -1,5 +1,6 @@
 */__pycache__/*
 
 market/data/csv/*
+market/charts/*
 market/util/fetch_cache.pkl
 market/util/__pycache__/*
