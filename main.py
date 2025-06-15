@@ -138,6 +138,8 @@ def gpu_check():
 
 
 if __name__ == "__main__":
+    gpu_check()
+    
     # --- 1. Setup ---
     stock_ticker = "NVDA"
     queue = FetchQueue()
