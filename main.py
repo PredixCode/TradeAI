@@ -92,27 +92,30 @@ if __name__ == "__main__":
 
     # --- 4. The Training Loop ---
     for e in range(num_episodes):
-        print(f"\n--- Starting Episode: {e+1}/{num_episodes} ---")
-        trader = Trader(historical_data=data, initial_balance=10000.0)
-        
-        for step in range(trader.total_steps):
-            state = get_state(data, step, price_window_size)
-            action = agent.act(state)
+        try:
+            print(f"\n--- Starting Episode: {e+1}/{num_episodes} ---")
+            trader = Trader(historical_data=data, initial_balance=10000.0)
             
-            previous_portfolio_value = trader.portfolio_value
-            if action == 1: trader.buy(amount_in_currency=1000)
-            elif action == 2 and trader.shares_held > 0: trader.sell(amount_in_shares=trader.shares_held / 2)
-            else: trader.hold()
+            for step in range(trader.total_steps):
+                state = get_state(data, step, price_window_size)
+                action = agent.act(state)
+                
+                previous_portfolio_value = trader.portfolio_value
+                if action == 1: trader.buy(amount_in_currency=1000)
+                elif action == 2 and trader.shares_held > 0: trader.sell(amount_in_shares=trader.shares_held / 2)
+                else: trader.hold()
 
-            done = not trader.next_step()
-            reward = trader.portfolio_value - previous_portfolio_value
-            next_state = get_state(data, step + 1, price_window_size) if not done else state
-            
-            agent.remember(state, action, reward, next_state, done)
-            agent.replay(batch_size)
+                done = not trader.next_step()
+                reward = trader.portfolio_value - previous_portfolio_value
+                next_state = get_state(data, step + 1, price_window_size) if not done else state
+                
+                agent.remember(state, action, reward, next_state, done)
+                agent.replay(batch_size)
 
-            if done:
-                break
+                if done:
+                    break
+        except KeyboardInterrupt:
+            break
         
         print(f"--- Episode {e+1} Summary ---")
         trader.print_summary()
