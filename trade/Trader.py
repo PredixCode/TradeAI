@@ -30,6 +30,10 @@ class Trader:
         """Calculates the total current value of the portfolio (cash + assets)."""
         return self.current_balance + (self.shares_held * self._get_current_price())
 
+    @property
+    def total_steps(self) -> int:
+        return len(self.data)
+
     def buy(self, amount_in_currency: float):
         """
         Executes a buy order with a specific amount of currency.
