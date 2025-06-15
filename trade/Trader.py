@@ -46,16 +46,12 @@ class Trader:
         """
         Executes a buy order with a specific amount of currency.
         """
-        if amount_in_currency <= 0:
+        
+        if not self.is_buy_valid(amount_in_currency):
             return False
 
         price = self._get_current_price()
         total_cost = amount_in_currency + self.transaction_fee
-
-        if total_cost > self.current_balance:
-            #print(f"Step {self.current_step}: BUY FAILED - Insufficient funds. "
-                    #f"Need €{total_cost:,.2f}, have €{self.current_balance:,.2f}")
-            return False
 
         self.current_balance -= total_cost
         shares_bought = amount_in_currency / price
@@ -75,25 +71,29 @@ class Trader:
                 #f"| New Balance: €{self.current_balance:,.2f}"
                 #f"| Total Fees Paid: €{self.total_fees_paid:,.2f}")
         return True
+    
+    def is_buy_valid(self, amount_in_currency: float) -> bool:
+        if amount_in_currency <= 0:
+            return False
+
+        total_cost = amount_in_currency + self.transaction_fee
+
+        if total_cost > self.current_balance:
+            #print(f"Step {self.current_step}: BUY FAILED - Insufficient funds. "
+                    #f"Need €{total_cost:,.2f}, have €{self.current_balance:,.2f}")
+            return False
+        return True
 
     def sell(self, amount_in_shares: float):
         """
         Executes a sell order with a specific number of shares.
         """
-        if amount_in_shares > self.shares_held:
-            #print(f"Step {self.current_step}: SELL FAILED - Not enough shares. "
-                    #f"Trying to sell {amount_in_shares:.4f}, have {self.shares_held:.4f}")
-            return False
 
+        if not self.is_sell_valid(amount_in_shares):
+            return False
+        
         price = self._get_current_price()
         revenue = amount_in_shares * price
-
-        if revenue < self.transaction_fee:
-            # This sale would lose money, so it's an invalid action.
-            #print(f"Step {self.current_step}: SELL FAILED - Sell is not profitable. "
-                #f"Would create {revenue - self.transaction_fee:.4f} in losses")
-            return False
-
         net_revenue = revenue - self.transaction_fee
 
         self.shares_held -= amount_in_shares
@@ -111,6 +111,22 @@ class Trader:
         self.trade_history.append(log_entry)
         #print(f"Step {self.current_step}: SOLD {amount_in_shares:.4f} shares @ €{price:,.2f} "
                 #f"| New Balance: €{self.current_balance:,.2f}")
+        return True
+
+    def is_sell_valid(self, amount_in_shares: float) -> bool:
+        if amount_in_shares > self.shares_held or amount_in_shares == 0:
+            #print(f"Step {self.current_step}: SELL FAILED - Not enough shares. "
+                    #f"Trying to sell {amount_in_shares:.4f}, have {self.shares_held:.4f}")
+            return False
+
+        #price = self._get_current_price()
+        #revenue = amount_in_shares * price
+
+        #if revenue < self.transaction_fee:
+            # This sale would lose money, so it's an invalid action.
+            #print(f"Step {self.current_step}: SELL FAILED - Sell is not profitable. "
+                #f"Would create {revenue - self.transaction_fee:.4f} in losses")
+            #return False
         return True
 
     def hold(self):

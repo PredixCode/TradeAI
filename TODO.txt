@@ -1,0 +1,2 @@
+# TODO: FIX flawed rewards logic, portfolio value doesnt increase or decrease after one step!
+Get reward from sell order through (sell price - original price) and get rewards from buy by analyzing low points of the chart

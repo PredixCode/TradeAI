@@ -44,47 +44,6 @@ def get_state(data: pd.DataFrame, trader: Trader, current_step: int, window_size
     state = np.concatenate((normalized_prices, time_features, portfolio_features))
     return np.reshape(state, [1, len(state)])
 
-def actor_worker(agent, data, stop_event, episode_counter):
-    """A worker thread that runs simulations to generate experiences."""
-    print(f"[{threading.current_thread().name}] Actor starting...")
-    while not stop_event.is_set():
-        episode_num = next(episode_counter)
-        trader = Trader(historical_data=data, initial_balance=10000.0)
-        
-        for step in range(trader.total_steps):
-            if stop_event.is_set(): break
-
-            state = get_state(data, trader, step, price_window_size)
-            action = agent.act(state)
-            
-            # Simplified trading logic for clarity
-            previous_portfolio_value = trader.portfolio_value
-            trade_executed = False
-            if action == 0: trade_executed = trader.hold()
-            elif 1 <= action <= 3:
-                amount_to_buy = trader.current_balance * {1: 0.05, 2: 0.10, 3: 0.15}[action]
-                trade_executed = trader.buy(amount_to_buy)
-            elif 4 <= action <= 6:
-                amount_to_sell = trader.shares_held * {4: 0.25, 5: 0.50, 6: 1.0}[action]
-                trade_executed = trader.sell(amount_to_sell)
-
-            reward = trader.portfolio_value - previous_portfolio_value if trade_executed else -1
-            done = not trader.next_step()
-            next_state = get_state(data, trader, step + 1, price_window_size) if not done else state
-            
-            agent.remember(state, action, reward, next_state, done)
-
-            if done: break
-        
-        print(f"[{threading.current_thread().name}] Episode {episode_num} finished. Final Value: €{trader.portfolio_value:,.2f}")
-
-def learner_worker(agent, batch_size, stop_event):
-    """A worker thread that continuously trains the agent's model."""
-    print(f"[{threading.current_thread().name}] Learner starting...")
-    while not stop_event.is_set():
-        agent.replay(batch_size)
-        time.sleep(0.1) # Small sleep to prevent busy-waiting if memory is empty
-
 def initialize_agent(state_size: int, action_size: int) -> TradeAI:
     """Handles the interactive process of creating or loading an agent."""
     os.makedirs(MODEL_DIR, exist_ok=True)
@@ -137,6 +96,7 @@ def gpu_check():
         print("❌ No GPU found. Training will proceed on CPU.")
 
 
+
 if __name__ == "__main__":
     gpu_check()
     
@@ -155,13 +115,13 @@ if __name__ == "__main__":
     # --- 3. AI and Environment Initialization ---
     price_window_size = 30
     state_size = price_window_size + 4 + 2 # price_window + time_features + portfolio_features
-    action_size = 7 
+    action_size = 3 
     batch_size = 64
     
     agent = initialize_agent(state_size, action_size)
 
-    MAX_STUCK_STEPS = 10
-    PUNISHMENT_SCALER = 0.1
+    initial_balance = 3000.00
+    REWARD_SCALER = 0.1  * (1000/initial_balance)
 
     # --- 4. The Continuous Training Loop ---
     episode = 0
@@ -169,73 +129,75 @@ if __name__ == "__main__":
         while True:
             episode += 1
             print(f"\n--- Starting Episode: {episode} ---")
-            trader = Trader(historical_data=data, initial_balance=10000.00)
+            trader = Trader(historical_data=data, initial_balance=initial_balance, transaction_fee=0.0)
             
             stuck_counter = 0
             total_rewards = 0
+            positive_rewards = 0
             
-            for step in range(trader.total_steps):
-                # Get the current state and action BEFORE checking for failure conditions
+            buy_fractions = {1: 0.1}
+            sell_fractions = {2: 1.0}
+            for step in range(trader.total_steps -1):
                 state = get_state(data, trader, step, price_window_size)
                 action = agent.act(state)
 
-                # --- Early Termination Punishment ---
-                if trader.is_insolvent or stuck_counter >= MAX_STUCK_STEPS:
-                    if trader.is_insolvent:
-                        print(f"  -> BANKRUPTCY! Agent is insolvent at step {step}. Ending episode.")
-                    else:
-                        print(f"  -> STUCK! Agent failed to execute a valid trade for {MAX_STUCK_STEPS} steps. Ending episode.")
-                    
-                    # Calculate the linear punishment
-                    remaining_steps = trader.total_steps - step
-                    punishment = -remaining_steps * PUNISHMENT_SCALER
-                    total_rewards += punishment
-                    
-                    print(f"  -> Survival Penalty: {punishment:.2f} (for missing {remaining_steps} steps)")
-                    
-                    # Remember this final, catastrophic failure and mark the episode as done
-                    agent.remember(state, action, punishment, state, True)
-                    break # End the episode
-
-                # --- Original Trading Logic ---
                 previous_portfolio_value = trader.portfolio_value
                 
                 trade_executed = False
                 if action == 0: # Hold
                     trade_executed = trader.hold()
-                elif 1 <= action <= 3: # Buy Actions
-                    buy_fractions = {1: 0.005, 2: 0.01, 3: 0.075} 
+                elif action == 1: # Buy Actions
                     amount_to_buy = trader.current_balance * buy_fractions[action]
                     trade_executed = trader.buy(amount_to_buy)
-                elif 4 <= action <= 6: # Sell Actions
+                elif action == 2: # Sell Actions
                     if trader.shares_held > 0:
-                        sell_fractions = {4: 0.25, 5: 0.50, 6: 1.0}
                         amount_to_sell = trader.shares_held * sell_fractions[action]
                         trade_executed = trader.sell(amount_to_sell)
                     else:
                         trade_executed = False
 
                 if trade_executed:
-                    stuck_counter = 0
-                    reward = trader.portfolio_value - previous_portfolio_value
+                    reward = trader.portfolio_value - previous_portfolio_value # TODO: FIX flawed logic, portfolio value doesnt increase or decrease after one step! Get reward from sell order through (sell price - original price) and get rewards from buy by analyzing low points of the chart
+
+                    if reward < 0:
+                        reward = reward * REWARD_SCALER
+                    else:
+                        positive_rewards += reward
+                    total_rewards += reward
+
+                    done = not trader.next_step()
+                    next_state = get_state(data, trader, step + 1, price_window_size) if not done else state
+                    
+                    agent.remember(state, action, reward, next_state, done)
+                    agent.replay(batch_size)
+
+                    if done:
+                        break
+
                 else:
-                    stuck_counter += 1
-                    reward = -100
-
-                done = not trader.next_step()
-                
-                next_state = get_state(data, trader, step + 1, price_window_size) if not done else state
-                
-                agent.remember(state, action, reward, next_state, done)
-                agent.replay(batch_size)
-
-                total_rewards += reward
-                if done:
-                    break
+                    cannot_buy_or_sell = not trader.is_buy_valid(trader.current_balance * list(buy_fractions.values())[-1]) and not trader.is_sell_valid(trader.shares_held)
+                    if trader.is_insolvent or cannot_buy_or_sell:
+                        if trader.is_insolvent:
+                            print(f"  -> BANKRUPTCY! Agent is insolvent at step {step}. Ending episode.")
+                        else:
+                            print(f"  -> DEADLOCK! Agent cannot buy or sell at step {step}. Ending episode.")
+                    
+                        # Calculate the linear punishment
+                        remaining_steps = trader.total_steps - step
+                        normalized_steps = 100/trader.total_steps
+                        punishment = -remaining_steps * normalized_steps
+                        total_rewards += punishment
+                        
+                        print(f"  -> Survival Penalty: {punishment:.2f} (for missing {remaining_steps} steps)")
+                        
+                        # Remember this final, catastrophic failure and mark the episode as done
+                        agent.remember(state, action, punishment, state, True)
+                        break # End the episode
             
             print(f"--- Episode {episode} Summary ---")
             trader.print_summary()
-            print(f"Agent Reward Balance: {total_rewards:.4f}")
+            print(f"Total Rewards: {total_rewards:.4f}\n"
+                    f"Total Positive Rewards: {positive_rewards:.4f}")
             print(f"Agent Epsilon: {agent.epsilon:.4f}")
 
     except KeyboardInterrupt:
@@ -249,7 +211,7 @@ if __name__ == "__main__":
         print("Invalid input. Please enter 'y' or 'n'.")
 
     if save_choice == 'y':
-        default_filename = f"{stock_ticker}_{num_episodes}_episodes.keras"
+        default_filename = f"{stock_ticker}_episodes.keras"
         filename = input(f"Enter filename (default: {default_filename}): ")
         if not filename:
             filename = default_filename
