@@ -1,6 +1,8 @@
 **/__pycache__/*
 venv/*
 
+ai/models/*
+
 market/data/csv/*
 market/charts/*
 market/util/fetch_cache.pkl
